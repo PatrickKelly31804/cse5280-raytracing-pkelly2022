@@ -1,0 +1,44 @@
+# Ray Tracing Assignment
+
+Patrick Kelly
+
+This project extends the starter ray tracing code by adding a plane, Phong shading, recursive reflection, recursive refraction, glossy reflection, soft-shadow sampling, and multiple viewpoints.
+
+## Features Implemented
+
+1. Basic recursive ray tracing
+2. Reflection
+3. Refraction
+4. Glossy reflection
+5. Rendering from multiple viewpoints
+6. Soft shadows
+
+## Scene Description
+
+The scene contains two spheres and one plane. Rays are cast from the camera through each pixel into the scene. The closest object hit by each ray is shaded using ambient, diffuse, and specular lighting based on the Phong reflection model. Reflection and refraction are handled recursively. Glossy reflection is created by perturbing the reflection direction with small random offsets and averaging the result. Soft shadows are approximated by sampling slightly offset light directions.
+
+## Output Files
+
+- view1.png
+- view2.png
+- view3.png
+
+## How to Run
+
+Run the program with:
+
+python3 raytrace.py
+
+The program renders three views of the scene and saves them as PNG files.
+
+## Notes
+
+The implementation includes:
+- sphere-ray intersection
+- plane-ray intersection
+- Phong shading
+- recursive reflection
+- recursive refraction
+- glossy reflection sampling
+- soft shadow sampling
+- multiple camera viewpoints
