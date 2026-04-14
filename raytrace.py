@@ -256,9 +256,23 @@ def trace_ray(ray, scene, depth):
     r = r / np.linalg.norm(r)
 
     # new reflected ray
-    reflected_ray = Ray(p + 0.001 * r, p + r)
+    reflected_color = np.array((0.0, 0.0, 0.0))
+    samples = 5
 
-    reflected_color = trace_ray(reflected_ray, scene, depth + 1)
+    for _ in range(samples):
+        jitter = np.array((
+            np.random.uniform(-0.08, 0.08),
+            np.random.uniform(-0.08, 0.08),
+            np.random.uniform(-0.08, 0.08)
+        ))
+
+        glossy_dir = r + jitter
+        glossy_dir = glossy_dir / np.linalg.norm(glossy_dir)
+
+        glossy_ray = Ray(p + 0.001 * glossy_dir, p + glossy_dir)
+        reflected_color += trace_ray(glossy_ray, scene, depth + 1)
+
+        reflected_color = reflected_color / samples
 
     # mix colors
     # refraction
@@ -280,25 +294,51 @@ def trace_ray(ray, scene, depth):
 # MAIN RENDER
 # -----------------------------
 def main():
-
     width = 512
     height = 512
 
+    # ---------- view 1 ----------
     camera = Camera(f=500, nrows=height, ncols=width)
     scene = Scene(camera)
 
     for i in range(height):
         for j in range(width):
-
             ray = camera.constructRayThroughPixel(i, j)
-            hits = scene.find_intersection(ray)
-
             color = trace_ray(ray, scene, 0)
             camera.I[i][j] = color
 
-    img = im.fromarray(np.uint8(camera.I))
-    img.save("output.png")
-    img.show()
+    img1 = im.fromarray(np.uint8(camera.I))
+    img1.save("view1.png")
+    img1.show()
+
+    # ---------- view 2 ----------
+    camera.eye = np.array((120.0, 40.0, 0.0))
+    camera.I = np.zeros([height, width, 3])
+    scene = Scene(camera)
+
+    for i in range(height):
+        for j in range(width):
+            ray = camera.constructRayThroughPixel(i, j)
+            color = trace_ray(ray, scene, 0)
+            camera.I[i][j] = color
+
+    img2 = im.fromarray(np.uint8(camera.I))
+    img2.save("view2.png")
+    img2.show()
+
+    # ---------- view 3 ----------
+    camera.eye = np.array((-120.0, 60.0, 0.0))
+    camera.I = np.zeros([height, width, 3])
+    scene = Scene(camera)
+
+    for i in range(height):
+        for j in range(width):
+            ray = camera.constructRayThroughPixel(i, j)
+            color = trace_ray(ray, scene, 0)
+            camera.I[i][j] = color
+
+    img3 = im.fromarray(np.uint8(camera.I))
+    img3.save("view3.png")
 
 
 # -----------------------------
