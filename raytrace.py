@@ -168,29 +168,63 @@ class Scene:
         n = obj.get_normal(p)
         n = n / np.linalg.norm(n)
 
-        light = self.light_source_1
-
         view = self.theCamera.eye - p
         view = view / np.linalg.norm(view)
 
-        # Ambient
         ambient = 0.2 * obj.Color
 
-        # Diffuse
-        diffuse = max(0, np.dot(n, light))
-        diffuse = obj.Color * diffuse
+        shadow_total = 0
+        samples = 8
 
-        # Specular
+        for _ in range(samples):
+            offset = np.array((
+            np.random.uniform(-0.2, 0.2),
+            np.random.uniform(-0.2, 0.2),
+            np.random.uniform(-0.2, 0.2)
+        ))
+
+        light = self.light_source_1 + offset
+        light = light / np.linalg.norm(light)
+
+        shadow_ray = Ray(p + 0.001 * light, p + light)
+        shadow_hits = self.find_intersection(shadow_ray)
+
+        blocked = False
+        for sh in shadow_hits:
+            if np.linalg.norm(sh.p - p) > 1e-3:
+                blocked = True
+                break
+
+        if not blocked:
+            shadow_total += 1
+
+        shadow = shadow_total / samples
+
+        light = self.light_source_1
+        light = light / np.linalg.norm(light)
+
+        diffuse = max(0, np.dot(n, light))
+        diffuse = obj.Color * diffuse * shadow
+
         r = 2 * np.dot(n, light) * n - light
         r = r / np.linalg.norm(r)
 
         spec = max(0, np.dot(r, view)) ** 32
-        specular = np.array((255, 255, 255)) * spec
+        specular = np.array((255, 255, 255)) * spec * shadow
 
         color = ambient + diffuse + specular
 
         return np.clip(color, 0, 255)
 
+
+def refract(d, n, eta):
+    cosi = -np.dot(n, d)
+    k = 1 - eta * eta * (1 - cosi * cosi)
+
+    if k < 0:
+        return None
+
+    return eta * d + (eta * cosi - np.sqrt(k)) * n
 
 def trace_ray(ray, scene, depth):
 
@@ -227,7 +261,18 @@ def trace_ray(ray, scene, depth):
     reflected_color = trace_ray(reflected_ray, scene, depth + 1)
 
     # mix colors
-    final_color = 0.7 * local_color + 0.3 * reflected_color
+    # refraction
+    eta = 1.0 / 1.5
+    refr_dir = refract(d, n, eta)
+
+    if refr_dir is not None:
+        refr_dir = refr_dir / np.linalg.norm(refr_dir)
+        refracted_ray = Ray(p + 0.001 * refr_dir, p + refr_dir)
+        refracted_color = trace_ray(refracted_ray, scene, depth + 1)
+    else:
+        refracted_color = np.array((0.0, 0.0, 0.0))
+
+    final_color = 0.6 * local_color + 0.2 * reflected_color + 0.2 * refracted_color
 
     return np.clip(final_color, 0, 255)
 
@@ -248,8 +293,7 @@ def main():
             ray = camera.constructRayThroughPixel(i, j)
             hits = scene.find_intersection(ray)
 
-            color = scene.get_color(hits)
-
+            color = trace_ray(ray, scene, 0)
             camera.I[i][j] = color
 
     img = im.fromarray(np.uint8(camera.I))
