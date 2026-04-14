@@ -171,10 +171,10 @@ class Scene:
         view = self.theCamera.eye - p
         view = view / np.linalg.norm(view)
 
-        ambient = 0.2 * obj.Color
+        ambient = 0.35 * obj.Color
 
         shadow_total = 0
-        samples = 8
+        samples = 4
 
         for _ in range(samples):
             offset = np.array((
@@ -257,13 +257,13 @@ def trace_ray(ray, scene, depth):
 
     # new reflected ray
     reflected_color = np.array((0.0, 0.0, 0.0))
-    samples = 5
+    samples = 3
 
     for _ in range(samples):
         jitter = np.array((
-            np.random.uniform(-0.08, 0.08),
-            np.random.uniform(-0.08, 0.08),
-            np.random.uniform(-0.08, 0.08)
+            np.random.uniform(-0.03, 0.03),
+            np.random.uniform(-0.03, 0.03),
+            np.random.uniform(-0.03, 0.03)
         ))
 
         glossy_dir = r + jitter
