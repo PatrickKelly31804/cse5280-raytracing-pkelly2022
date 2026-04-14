@@ -1,9 +1,7 @@
 import numpy as np
 from PIL import Image as im
 
-# -----------------------------
-# Ray Class
-# -----------------------------
+
 class Ray:
     def __init__(self, e, s):
         self.e = e
@@ -13,9 +11,6 @@ class Ray:
         return self.e + (self.s - self.e) * t
 
 
-# -----------------------------
-# Sphere Class
-# -----------------------------
 class Sphere:
     def __init__(self, c, r, k):
         self.Center = c
@@ -25,7 +20,6 @@ class Sphere:
     def Intersect(self, ray):
         d = ray.s - ray.e
         e = ray.e
-
         c = self.Center
         r = self.Radius
 
@@ -41,11 +35,11 @@ class Sphere:
         t1 = (-B - np.sqrt(delta)) / (2.0 * A)
         t2 = (-B + np.sqrt(delta)) / (2.0 * A)
 
-        t = min(t1, t2)
+        ts = [t for t in [t1, t2] if t > 0]
+        if len(ts) == 0:
+            return float("inf")
 
-        if t > 0:
-            return t
-        return float("inf")
+        return min(ts)
 
     def get_normal(self, p):
         return (p - self.Center) / np.linalg.norm(p - self.Center)
@@ -74,11 +68,8 @@ class Plane:
         return self.n
 
 
-# -----------------------------
-# Camera Class
-# -----------------------------
 class Camera:
-    eye = np.array((0.0, 0.0, 0.0)).transpose()
+    eye = np.array((0.0, 0.0, 0.0))
 
     def __init__(self, f, nrows, ncols):
         self.f = f
@@ -93,54 +84,44 @@ class Camera:
 
     def constructRayThroughPixel(self, i, j):
         u, v = self.ij2uv(i, j)
-        s = np.array((u, v, -self.f)).transpose()
+        s = np.array((u, v, -self.f))
         return Ray(self.eye, s)
 
 
-# -----------------------------
-# Hit Info
-# -----------------------------
 class HitInformation:
     def __init__(self, obj, p):
         self.Object = obj
         self.p = p
 
 
-# -----------------------------
-# Scene Class
-# -----------------------------
 class Scene:
-    light_source_1 = np.array([0, 0, 1])
-    light_source_1 = light_source_1 / np.linalg.norm(light_source_1)
+    light_source_1 = np.array([0.0, 0.0, 1.0])
 
     def __init__(self, camera):
-
         self.theCamera = camera
+        self.light_source_1 = self.light_source_1 / np.linalg.norm(self.light_source_1)
+
         objects = []
 
-        # Sphere 1
         objects.append(
             Sphere(
-                np.array((-90, 0, -800)),
-                80,
-                np.array((255, 0, 0))
+                np.array((-90.0, 0.0, -800.0)),
+                80.0,
+                np.array((255.0, 0.0, 0.0))
             )
         )
 
-        # Sphere 2
         objects.append(
             Sphere(
-                np.array((90, 0, -400)),
-                80,
-                np.array((0, 255, 0))
+                np.array((90.0, 0.0, -400.0)),
+                80.0,
+                np.array((0.0, 255.0, 0.0))
             )
         )
 
-        # Plane (floor)
-        p1 = np.array((0, -120, 0))
-        n = np.array((0, 1, 0))
-        color = np.array((180, 180, 180))
-
+        p1 = np.array((0.0, -120.0, 0.0))
+        n = np.array((0.0, 1.0, 0.0))
+        color = np.array((180.0, 180.0, 180.0))
         objects.append(Plane(p1, n, color))
 
         self.scene_objects = objects
@@ -157,9 +138,8 @@ class Scene:
         return hit_list
 
     def get_color(self, hit_list):
-
         if len(hit_list) == 0:
-            return np.array((0, 0, 0))
+            return np.array((0.0, 0.0, 0.0))
 
         hit = hit_list[0]
         obj = hit.Object
@@ -174,46 +154,45 @@ class Scene:
         ambient = 0.35 * obj.Color
 
         shadow_total = 0
-        samples = 4
+        shadow_samples = 4
 
-        for _ in range(samples):
+        for _ in range(shadow_samples):
             offset = np.array((
-            np.random.uniform(-0.2, 0.2),
-            np.random.uniform(-0.2, 0.2),
-            np.random.uniform(-0.2, 0.2)
-        ))
+                np.random.uniform(-0.2, 0.2),
+                np.random.uniform(-0.2, 0.2),
+                np.random.uniform(-0.2, 0.2)
+            ))
 
-        light = self.light_source_1 + offset
-        light = light / np.linalg.norm(light)
+            light = self.light_source_1 + offset
+            light = light / np.linalg.norm(light)
 
-        shadow_ray = Ray(p + 0.001 * light, p + light)
-        shadow_hits = self.find_intersection(shadow_ray)
+            shadow_ray = Ray(p + 0.001 * light, p + light)
+            shadow_hits = self.find_intersection(shadow_ray)
 
-        blocked = False
-        for sh in shadow_hits:
-            if np.linalg.norm(sh.p - p) > 1e-3:
-                blocked = True
-                break
+            blocked = False
+            for sh in shadow_hits:
+                if np.linalg.norm(sh.p - p) > 1e-3:
+                    blocked = True
+                    break
 
-        if not blocked:
-            shadow_total += 1
+            if not blocked:
+                shadow_total += 1
 
-        shadow = shadow_total / samples
+        shadow = shadow_total / shadow_samples
 
         light = self.light_source_1
         light = light / np.linalg.norm(light)
 
-        diffuse = max(0, np.dot(n, light))
-        diffuse = obj.Color * diffuse * shadow
+        diffuse_amount = max(0.0, np.dot(n, light))
+        diffuse = obj.Color * diffuse_amount * shadow
 
         r = 2 * np.dot(n, light) * n - light
         r = r / np.linalg.norm(r)
 
-        spec = max(0, np.dot(r, view)) ** 32
-        specular = np.array((255, 255, 255)) * spec * shadow
+        spec_amount = max(0.0, np.dot(r, view)) ** 32
+        specular = np.array((255.0, 255.0, 255.0)) * spec_amount * shadow
 
         color = ambient + diffuse + specular
-
         return np.clip(color, 0, 255)
 
 
@@ -226,8 +205,8 @@ def refract(d, n, eta):
 
     return eta * d + (eta * cosi - np.sqrt(k)) * n
 
-def trace_ray(ray, scene, depth):
 
+def trace_ray(ray, scene, depth):
     if depth > 3:
         return np.array((0.0, 0.0, 0.0))
 
@@ -236,7 +215,6 @@ def trace_ray(ray, scene, depth):
     if len(hit_list) == 0:
         return np.array((0.0, 0.0, 0.0))
 
-    # find closest hit
     closest_hit = hit_list[0]
     for hit in hit_list:
         if np.linalg.norm(hit.p - ray.e) < np.linalg.norm(closest_hit.p - ray.e):
@@ -251,15 +229,13 @@ def trace_ray(ray, scene, depth):
     d = ray.s - ray.e
     d = d / np.linalg.norm(d)
 
-    # reflection direction
     r = d - 2 * np.dot(d, n) * n
     r = r / np.linalg.norm(r)
 
-    # new reflected ray
     reflected_color = np.array((0.0, 0.0, 0.0))
-    samples = 3
+    glossy_samples = 3
 
-    for _ in range(samples):
+    for _ in range(glossy_samples):
         jitter = np.array((
             np.random.uniform(-0.03, 0.03),
             np.random.uniform(-0.03, 0.03),
@@ -272,10 +248,8 @@ def trace_ray(ray, scene, depth):
         glossy_ray = Ray(p + 0.001 * glossy_dir, p + glossy_dir)
         reflected_color += trace_ray(glossy_ray, scene, depth + 1)
 
-        reflected_color = reflected_color / samples
+    reflected_color = reflected_color / glossy_samples
 
-    # mix colors
-    # refraction
     eta = 1.0 / 1.5
     refr_dir = refract(d, n, eta)
 
@@ -287,62 +261,45 @@ def trace_ray(ray, scene, depth):
         refracted_color = np.array((0.0, 0.0, 0.0))
 
     final_color = 0.6 * local_color + 0.2 * reflected_color + 0.2 * refracted_color
-
     return np.clip(final_color, 0, 255)
 
-# -----------------------------
-# MAIN RENDER
-# -----------------------------
+
+def render_view(camera, scene, width, height):
+    camera.I = np.zeros([height, width, 3])
+
+    for i in range(height):
+        for j in range(width):
+            ray = camera.constructRayThroughPixel(i, j)
+            color = trace_ray(ray, scene, 0)
+            camera.I[i][j] = color
+
+    return im.fromarray(np.uint8(camera.I))
+
+
 def main():
     width = 512
     height = 512
 
-    # ---------- view 1 ----------
     camera = Camera(f=500, nrows=height, ncols=width)
+
+    camera.eye = np.array((0.0, 0.0, 0.0))
     scene = Scene(camera)
-
-    for i in range(height):
-        for j in range(width):
-            ray = camera.constructRayThroughPixel(i, j)
-            color = trace_ray(ray, scene, 0)
-            camera.I[i][j] = color
-
-    img1 = im.fromarray(np.uint8(camera.I))
+    img1 = render_view(camera, scene, width, height)
     img1.save("view1.png")
     img1.show()
 
-    # ---------- view 2 ----------
     camera.eye = np.array((120.0, 40.0, 0.0))
-    camera.I = np.zeros([height, width, 3])
     scene = Scene(camera)
-
-    for i in range(height):
-        for j in range(width):
-            ray = camera.constructRayThroughPixel(i, j)
-            color = trace_ray(ray, scene, 0)
-            camera.I[i][j] = color
-
-    img2 = im.fromarray(np.uint8(camera.I))
+    img2 = render_view(camera, scene, width, height)
     img2.save("view2.png")
     img2.show()
 
-    # ---------- view 3 ----------
     camera.eye = np.array((-120.0, 60.0, 0.0))
-    camera.I = np.zeros([height, width, 3])
     scene = Scene(camera)
-
-    for i in range(height):
-        for j in range(width):
-            ray = camera.constructRayThroughPixel(i, j)
-            color = trace_ray(ray, scene, 0)
-            camera.I[i][j] = color
-
-    img3 = im.fromarray(np.uint8(camera.I))
+    img3 = render_view(camera, scene, width, height)
     img3.save("view3.png")
+    img3.show()
 
 
-# -----------------------------
-# RUN
-# -----------------------------
 if __name__ == "__main__":
     main()
